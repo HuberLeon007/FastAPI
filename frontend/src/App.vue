@@ -7,7 +7,12 @@
       <form @submit.prevent="createItem">
         <input v-model="newItem.name" placeholder="Name" required />
         <input v-model="newItem.category" placeholder="Kategorie" />
-        <input v-model="newItem.status" placeholder="Status" />
+        <select v-model="newItem.status" required>
+          <option value="">Status wählen</option>
+          <option value="verfügbar">verfügbar</option>
+          <option value="in Verwendung">in Verwendung</option>
+          <option value="Wartung">Wartung</option>
+        </select>
         <input v-model="newItem.location" placeholder="Ort" />
         <input v-model="newItem.assigned_to" placeholder="Zugewiesen an" />
         <button type="submit">Anlegen</button>
@@ -119,7 +124,7 @@ form {
   flex-wrap: wrap;
 }
 
-input {
+input, select {
   padding: 8px 12px;
   border: 1px solid #ddd;
   border-radius: 4px;
