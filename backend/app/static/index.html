@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Inventarverwaltung</title>
+    <style>
+      body{font-family:Arial,Helvetica,sans-serif;margin:20px}
+      table{border-collapse:collapse;width:100%}
+      th,td{border:1px solid #ddd;padding:8px}
+      th{background:#f5f5f5}
+    </style>
+  </head>
+  <body>
+    <h1>Inventarverwaltung</h1>
+
+    <section>
+      <h2>Neuer Artikel</h2>
+      <form id="createForm">
+        <input name="name" placeholder="Name" required />
+        <input name="quantity" type="number" placeholder="Menge" value="0" />
+        <input name="location" placeholder="Ort" />
+        <input name="description" placeholder="Beschreibung" />
+        <button type="submit">Anlegen</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>Artikel</h2>
+      <table id="itemsTable">
+        <thead><tr><th>ID</th><th>Name</th><th>Menge</th><th>Ort</th><th>Aktionen</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <script>
+      const api = '/items'
+
+      async function load(){
+        const res = await fetch(api)
+        const items = await res.json()
+        const tbody = document.querySelector('#itemsTable tbody')
+        tbody.innerHTML = ''
+        for(const it of items){
+          const tr = document.createElement('tr')
+          tr.innerHTML = `<td>${it.id}</td><td>${it.name}</td><td>${it.quantity}</td><td>${it.location||''}</td><td><button data-id="${it.id}" class="del">Löschen</button></td>`
+          tbody.appendChild(tr)
+        }
+      }
+
+      document.getElementById('createForm').addEventListener('submit', async (e)=>{
+        e.preventDefault()
+        const fd = new FormData(e.target)
+        const body = Object.fromEntries(fd.entries())
+        body.quantity = Number(body.quantity)||0
+        await fetch(api, {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body)})
+        e.target.reset()
+        load()
+      })
+
+      document.addEventListener('click', async (e)=>{
+        if(e.target.matches('.del')){
+          const id = e.target.dataset.id
+          await fetch(api+'/'+id, {method:'DELETE'})
+          load()
+        }
+      })
+
+      load()
+    </script>
+  </body>
+</html>

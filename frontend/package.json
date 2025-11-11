@@ -1,0 +1,35 @@
+{{
+
+  "name": "inventarverwaltung-frontend",  "name": "frontend",
+
+  "version": "1.0.0",  "type": "module",
+
+  "type": "module",  "private": true,
+
+  "scripts": {  "scripts": {
+
+    "dev": "vite --host 0.0.0.0",    "build": "nuxt build",
+
+    "build": "vite build",    "dev": "nuxt dev",
+
+    "preview": "vite preview"    "generate": "nuxt generate",
+
+  },    "preview": "nuxt preview",
+
+  "dependencies": {    "postinstall": "nuxt prepare"
+
+    "vue": "^3.4.0",  },
+
+    "axios": "^1.6.0"  "dependencies": {
+
+  },    "nuxt": "^4.2.1",
+
+  "devDependencies": {    "vue": "^3.5.24",
+
+    "@vitejs/plugin-vue": "^5.0.0",    "vue-router": "^4.6.3"
+
+    "vite": "^5.0.0"  }
+
+  }}
+
+}
