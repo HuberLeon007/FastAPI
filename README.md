@@ -1,158 +1,294 @@
-# Inventarverwaltung — FastAPI + PostgreSQL + Docker
+# Inventarverwaltung — FastAPI + PostgreSQL + Vue.js
 
-Dieses Repository enthält ein Lehrprojekt zur Umsetzung einer kleinen Inventarverwaltungs-
-anwendung mit einem FastAPI-Backend, einer PostgreSQL-Datenbank und einer einfachen Webober-
-fläche (statische HTML/JavaScript oder kleines SPA). Das Projekt ist so ausgelegt, dass es lo-
-kal in Containern läuft und reproduzierbar gestartet werden kann.
+Moderne Full-Stack-Webanwendung zur Verwaltung von Inventargegenständen mit FastAPI-Backend, PostgreSQL-Datenbank und Vue.js-Frontend.
 
-## Ziel
+## Überblick
 
-Ziel ist eine einfache Inventarverwaltung (Inventarverwaltung / Lagerverwaltung) mit CRUD-
-Funktionalität für Inventarposten. Die Anwendung besteht aus zwei Containern:
+Dieses Projekt ist eine containerisierte Inventarverwaltungsanwendung mit folgenden Komponenten:
 
-- Backend-Container (FastAPI) — erreichbar auf Port 8000
-- PostgreSQL-Container — interner Port 5432, auf dem Host wird Port 5433 freigegeben
+- **Backend**: FastAPI (Python) REST-API
+- **Frontend**: Vue.js 3 mit Vite
+- **Datenbank**: PostgreSQL 15
+- **Orchestrierung**: Docker Compose
 
-Das Backend liefert die statischen Frontend-Dateien aus (Standardfall). Alternativ kann ein se-
-parates Frontend verwendet werden, wenn dies begründet wird.
+Alle Dienste laufen in separaten Docker-Containern und kommunizieren über ein gemeinsames Netzwerk.
 
-## Architekturüberblick
+## Architektur
 
-- FastAPI (Python) als REST-API
-- PostgreSQL als persistenter Datenspeicher (Volume für persistente Daten)
-- Docker Compose zur Orchestrierung der beiden Container im gemeinsamen Netzwerk
+```
+┌─────────────┐      ┌─────────────┐      ┌─────────────┐
+│  Frontend   │ ───> │   Backend   │ ───> │  PostgreSQL │
+│  (Vue.js)   │      │  (FastAPI)  │      │   Database  │
+│  Port 5173  │      │  Port 8000  │      │  Port 5432  │
+└─────────────┘      └─────────────┘      └─────────────┘
+```
+
+### Komponenten
+
+- **Backend (FastAPI)**: REST-API auf Port 8000
+- **Frontend (Vue.js)**: Entwicklungsserver auf Port 5173
+- **PostgreSQL**: Datenbank auf internem Port 5432 (Host: 5433)
 
 ## Datenmodell
 
-Wir verwenden eine einzelne Entität `InventoryItem` für das Inventar mit folgenden Attributen:
+Die Anwendung arbeitet mit der Entität `InventoryItem`:
 
-- id: integer, Primärschlüssel (autoincrement)
-- name: string, Name des Artikels
-- description: string, optionale Beschreibung
-- quantity: integer, verfügbare Menge
-- location: string, Lagerort (z. B. Regalfach)
-- created_at: timestamp, Erstellungszeitpunkt
+| Feld          | Typ       | Beschreibung                    |
+|---------------|-----------|----------------------------------|
+| `id`          | Integer   | Primärschlüssel (Auto-Increment)|
+| `name`        | String    | Name des Artikels               |
+| `description` | String    | Optionale Beschreibung          |
+| `quantity`    | Integer   | Verfügbare Menge                |
+| `location`    | String    | Lagerort (z.B. Regalfach)       |
+| `created_at`  | Timestamp | Erstellungszeitpunkt            |
 
-ER in Worten: InventoryItem(id, name, description, quantity, location, created_at)
+## REST-API Endpunkte
 
-## REST-Endpunkte (erste Fassung)
+Die API bietet vollständige CRUD-Funktionalität für Inventargegenstände:
 
-- GET  /items               — Liste aller Inventarposten (optional: filter by location)
-- POST /items               — Neuen Inventarposten anlegen
-- GET  /items/{id}          — Details eines Postens
-- PUT  /items/{id}          — Posten aktualisieren
-- DELETE /items/{id}        — Posten löschen
+### GET /health
+Health-Check Endpunkt zur Überprüfung der API-Verfügbarkeit.
 
-Die API wird JSON verwenden und einfache Validierung über Pydantic-Schemas durchführen.
-
-## Container- und Port-Konfiguration
-
-- PostgreSQL-Container:
-  - interner Port: 5432
-  - auf Host gebundener Port: 5433
-  - Persistenter Datenordner: Docker Volume (z. B. `pgdata`)
-- Backend-Container (FastAPI):
-  - Port 8000 (uvicorn)
-  - Liefert statische Dateien (Frontend) aus `backend/app/static` oder `backend/app/frontend_dist`
-
-Ein `docker-compose.yml` wird beide Dienste im selben Netzwerk starten und ein Volume für die
-DB bereitstellen.
-
-## Erste Implementierungsschritte (Kurzfassung / To-Do)
-
-Die folgenden Schritte sind die nächsten konkreten Aufgaben, die wir nacheinander umsetzen wer-
-den. Jede Aufgabe ist klein genug, um danach getestet zu werden.
-
-1. Backend-Skelett erstellen
-	- Verzeichnis: `backend/app`
-	- Dateien: `main.py`, `models.py`, `schemas.py`, `crud.py`, `database.py`, `static/` für das Frontend
-	- Einfachen FastAPI-Server starten, der auf `/health` mit 200 antwortet
-
-2. Dockerfile für das Backend
-	- Basisimage: `python:3.14-slim` (oder neuer)
-	- Installation der Anforderungen (fastapi, uvicorn, sqlalchemy/asyncpg oder psycopg2)
-
-3. `docker-compose.yml` hinzufügen
-	- Dienste: `db` (postgres:15 oder neuer) und `backend`
-	- Ports: `5433:5432` für db, `8000:8000` für backend
-	- Volume für PostgreSQL-Daten
-
-4. Datenbankmodell und Verbindung
-	- Modell `InventoryItem` anlegen (SQLAlchemy oder SQLModel)
-	- DB-Verbindungsstring über Umgebungsvariable (z. B. `DATABASE_URL`)
-	- In Dev: `create_all()` oder einfache Migration einrichten (Alembic optional)
-
-5. CRUD-Endpunkte implementieren
-	- Endpunkte gemäß Spezifikation
-	- Pydantic-Schemas für Request/Response
-	- Grundlegende Fehlerbehandlung (404, 400)
-
-6. Einfaches Frontend
-	- `backend/app/static/index.html` mit JavaScript, das die API nutzt
-	- Anzeige, Filter, Formular zum Anlegen / Bearbeiten
-
-7. Tests
-	- `pytest`-Tests für die API-Endpunkte (happy path + 1-2 Randfälle)
-
-8. Dokumentation
-	- Prompts und wichtige AI-Antworten dokumentieren
-	- Benutzer- und Entwickleranleitung in `README.md`
-
-## Wie man lokal startet (Schnellstart)
-
-Voraussetzungen: Docker und Docker Compose installiert.
-
-Im PowerShell (Windows) im Projektverzeichnis:
-
-```powershell
-# Environment-Datei kopieren (falls vorhanden)
-Copy-Item .env.sample .env -ErrorAction SilentlyContinue
-
-# Container bauen und starten
-docker compose up --build
-
-# Backend ist dann unter http://localhost:8000 erreichbar
-# PostgreSQL ist auf dem Host unter Port 5433 erreichbar (z. B. psql -h localhost -p 5433)
+**Response:**
+```json
+{
+  "status": "ok"
+}
 ```
-
-Die ersten Implementierungsschritte (Backend-Skelett + docker-compose) werden wir als nächstes
-einrichten. Nach dem Starten mit `docker compose up --build` sollte der `/health`-Endpoint 200
-zurückgeben.
-
-## Umgebungsvariablen (Beispiel)
-
-- DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
-- POSTGRES_USER=postgres
-- POSTGRES_PASSWORD=postgres
-- POSTGRES_DB=postgres
-
-Hinweis: In `docker-compose.yml` werden die DB-Variablen gesetzt; lokal zum Testen kann eine
-.env-Datei benutzt werden.
-
-## Nächste konkrete Schritte (geplante Reihenfolge)
-
-1. Ich erstelle das Backend-Skelett (`backend/app`) mit `main.py` und einem `/health`-Endpoint.
-2. Ich schreibe eine einfache `docker-compose.yml` und eine `Dockerfile` für das Backend.
-3. Ich implementiere das `InventoryItem`-Modell und einfache CRUD-Endpunkte.
-4. Ich fülle ein minimales statisches Frontend in `backend/app/static`.
-5. Tests: `pytest`-Suiten für die Endpunkte.
-
-Wenn du einverstanden bist, beginne ich sofort mit Schritt 1 (Backend-Skelett + /health-Endpoint)
-und Schritt 2 (Dockerfile + docker-compose). Soll ich das jetzt anlegen?
-
-## Lizenz und Hinweise
-
-Dieses Projekt ist als Lehrprojekt gedacht. Bei Nutzung der KI sind alle Ergebnisse fachlich zu
-prüfen. Wichtige Prompts und Antworten sollten dokumentiert und bei Abgabe als Anhang beigelegt
-werden.
 
 ---
 
-Dateien/Orte, an denen wir als nächstes Änderungen vornehmen werden:
+### GET /items
+Alle Inventargegenstände abrufen (mit optionalem Filter).
 
-- `backend/app/main.py`  — FastAPI-Entrypoint
-- `backend/Dockerfile`   — Dockerfile für Backend
-- `docker-compose.yml`   — Compose-Datei im Projekt-Root
-- `backend/app/models.py` / `schemas.py` / `crud.py` — DB-Modelle und Logik
+**Query Parameter:**
+- `location` (optional): Filtert nach Lagerort
 
-# FastAPI
+**Response:** `200 OK`
+```json
+[
+  {
+    "id": 1,
+    "name": "Laptop Dell XPS",
+    "description": "15 Zoll, 16GB RAM",
+    "quantity": 5,
+    "location": "Regal A3",
+    "created_at": "2025-11-18T10:30:00"
+  }
+]
+```
+
+**Beispiel:**
+```bash
+curl http://localhost:8000/items
+curl http://localhost:8000/items?location=Regal%20A3
+```
+
+---
+
+### GET /items/{item_id}
+Einzelnen Inventargegenstand abrufen.
+
+**Path Parameter:**
+- `item_id`: ID des Inventargegenstands
+
+**Response:** `200 OK`
+```json
+{
+  "id": 1,
+  "name": "Laptop Dell XPS",
+  "description": "15 Zoll, 16GB RAM",
+  "quantity": 5,
+  "location": "Regal A3",
+  "created_at": "2025-11-18T10:30:00"
+}
+```
+
+**Fehler:** `404 Not Found` - Wenn Item nicht existiert
+
+**Beispiel:**
+```bash
+curl http://localhost:8000/items/1
+```
+
+---
+
+### POST /items
+Neuen Inventargegenstand anlegen.
+
+**Request Body:**
+```json
+{
+  "name": "Laptop Dell XPS",
+  "description": "15 Zoll, 16GB RAM",
+  "quantity": 5,
+  "location": "Regal A3"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "id": 1,
+  "name": "Laptop Dell XPS",
+  "description": "15 Zoll, 16GB RAM",
+  "quantity": 5,
+  "location": "Regal A3",
+  "created_at": "2025-11-18T10:30:00"
+}
+```
+
+**Beispiel:**
+```bash
+curl -X POST http://localhost:8000/items \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Laptop Dell XPS",
+    "description": "15 Zoll, 16GB RAM",
+    "quantity": 5,
+    "location": "Regal A3"
+  }'
+```
+
+---
+
+### PUT /items/{item_id}
+Inventargegenstand aktualisieren.
+
+**Path Parameter:**
+- `item_id`: ID des zu aktualisierenden Items
+
+**Request Body:**
+```json
+{
+  "name": "Laptop Dell XPS",
+  "description": "15 Zoll, 32GB RAM",
+  "quantity": 3,
+  "location": "Regal B1"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "id": 1,
+  "name": "Laptop Dell XPS",
+  "description": "15 Zoll, 32GB RAM",
+  "quantity": 3,
+  "location": "Regal B1",
+  "created_at": "2025-11-18T10:30:00"
+}
+```
+
+**Fehler:** `404 Not Found` - Wenn Item nicht existiert
+
+**Beispiel:**
+```bash
+curl -X PUT http://localhost:8000/items/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "quantity": 3,
+    "location": "Regal B1"
+  }'
+```
+
+---
+
+### DELETE /items/{item_id}
+Inventargegenstand löschen.
+
+**Path Parameter:**
+- `item_id`: ID des zu löschenden Items
+
+**Response:** `204 No Content` (bei Erfolg)
+
+**Fehler:** `404 Not Found` - Wenn Item nicht existiert
+
+**Beispiel:**
+```bash
+curl -X DELETE http://localhost:8000/items/1
+```
+
+---
+
+## Schnellstart
+
+### Voraussetzungen
+
+- Docker
+- Docker Compose
+
+### Installation und Start
+
+1. **Repository klonen**
+   ```powershell
+   git clone <repository-url>
+   cd FastAPI
+   ```
+
+2. **Container starten**
+   ```powershell
+   docker compose up --build
+   ```
+
+3. **Anwendung nutzen**
+   - Frontend: http://localhost:5173
+   - Backend API: http://localhost:8000
+   - API Dokumentation: http://localhost:8000/docs
+
+### Container stoppen
+
+```powershell
+docker compose down
+```
+
+### Daten löschen (Reset)
+
+```powershell
+docker compose down -v
+```
+
+## Entwicklung
+
+### Projekt-Struktur
+
+```
+FastAPI/
+├── backend/
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── main.py          # FastAPI App & Endpunkte
+│   │   ├── models.py        # SQLModel Datenmodelle
+│   │   ├── crud.py          # Datenbankoperationen
+│   │   ├── database.py      # DB-Verbindung
+│   │   └── static/
+│   │       └── index.html   # Statisches HTML
+│   ├── Dockerfile
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── App.vue          # Vue Hauptkomponente
+│   │   └── main.js
+│   ├── Dockerfile
+│   ├── package.json
+│   └── vite.config.js
+├── database/
+│   └── init.sql             # DB-Initialisierung
+└── docker-compose.yml
+```
+
+### API-Dokumentation
+
+FastAPI generiert automatisch eine interaktive API-Dokumentation:
+
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+
+### Datenbank-Zugriff
+
+PostgreSQL ist auf dem Host unter Port 5433 erreichbar:
+
+```powershell
+# Mit psql verbinden
+psql -h localhost -p 5433 -U postgres -d postgres
+```
