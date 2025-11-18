@@ -15,13 +15,89 @@ Alle Dienste laufen in separaten Docker-Containern und kommunizieren über ein g
 
 ## Architektur
 
+### Netzwerk-Kommunikationsstruktur
+
 ```
-┌─────────────┐      ┌─────────────┐      ┌─────────────┐
-│  Frontend   │ ───> │   Backend   │ ───> │  PostgreSQL │
-│  (Vue.js)   │      │  (FastAPI)  │      │   Database  │
-│  Port 5173  │      │  Port 8000  │      │  Port 5432  │
-└─────────────┘      └─────────────┘      └─────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                          Docker Host                                  │
+│                                                                       │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │                     Docker Network (Bridge)                    │  │
+│  │                                                                │  │
+│  │  ┌───────────────┐         ┌───────────────┐         ┌──────────────┐  │
+│  │  │   Frontend    │         │    Backend    │         │  PostgreSQL  │  │
+│  │  │   Container   │         │   Container   │         │  Container   │  │
+│  │  │               │         │               │         │              │  │
+│  │  │   Vue.js 3    │  HTTP   │   FastAPI     │  TCP    │  PostgreSQL  │  │
+│  │  │   + Vite      │ ──────> │   (uvicorn)   │ ──────> │      15      │  │
+│  │  │               │         │               │         │              │  │
+│  │  │  Port: 5173   │         │  Port: 8000   │         │  Port: 5432  │  │
+│  │  └───────┬───────┘         └───────┬───────┘         └──────┬───────┘  │
+│  │          │                         │                         │          │
+│  └──────────┼─────────────────────────┼─────────────────────────┼──────────┘
+│             │                         │                         │          │
+│             │ Port-Mapping            │ Port-Mapping            │ Port-Mapping
+│             │ 5173:5173               │ 8000:8000               │ 54320:5432
+│             ▼                         ▼                         ▼          │
+└─────────────────────────────────────────────────────────────────────────────┘
+              │                         │                         │
+              │                         │                         │
+              ▼                         ▼                         ▼
+         Browser                    API Client              PostgreSQL Client
+     (localhost:5173)            (localhost:8000)          (localhost:54320)
 ```
+
+### Kommunikationsprotokolle
+
+**Frontend → Backend (HTTP/REST)**
+- Protokoll: HTTP/1.1
+- Format: JSON
+- Methoden: GET, POST, PUT, DELETE
+- Endpunkte: `/items`, `/items/{id}`, `/health`
+- CORS: Aktiviert für lokale Entwicklung
+
+**Backend → Datenbank (PostgreSQL-Protokoll)**
+- Protokoll: PostgreSQL Wire Protocol (TCP/IP)
+- Port: 5432 (intern im Docker-Netzwerk)
+- Verbindung: `postgresql://postgres:postgres@db:5432/postgres`
+- ORM: SQLModel (basierend auf SQLAlchemy)
+
+### Docker-Netzwerk-Details
+
+- **Netzwerk-Name**: Standard Bridge-Netzwerk (automatisch erstellt)
+- **DNS-Auflösung**: Container können sich über Service-Namen erreichen
+  - Frontend erreicht Backend über: `http://backend:8000`
+  - Backend erreicht Datenbank über: `db:5432`
+- **Isolation**: Alle Container laufen im gleichen isolierten Netzwerk
+
+### Datenfluss
+
+1. **Benutzer-Aktion** (Browser)
+   - Benutzer öffnet `http://localhost:5173` im Browser
+   
+2. **Frontend-Request** (Vue.js → FastAPI)
+   - Frontend sendet HTTP-Request an `http://localhost:8000/items`
+   - Request enthält JSON-Daten (bei POST/PUT)
+   
+3. **Backend-Verarbeitung** (FastAPI)
+   - Empfängt Request und validiert Daten
+   - Führt Geschäftslogik aus
+   
+4. **Datenbank-Abfrage** (FastAPI → PostgreSQL)
+   - Backend erstellt SQL-Query über SQLModel
+   - Sendet Query an `db:5432`
+   
+5. **Datenbank-Antwort** (PostgreSQL → FastAPI)
+   - PostgreSQL verarbeitet Query
+   - Gibt Ergebnis zurück
+   
+6. **API-Response** (FastAPI → Vue.js)
+   - Backend serialisiert Daten zu JSON
+   - Sendet HTTP-Response zurück
+   
+7. **UI-Update** (Vue.js)
+   - Frontend empfängt JSON-Daten
+   - Aktualisiert die Benutzeroberfläche
 
 ### Komponenten
 
