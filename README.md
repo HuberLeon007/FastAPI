@@ -26,8 +26,24 @@ Alle Dienste laufen in separaten Docker-Containern und kommunizieren über ein g
 ### Komponenten
 
 - **Backend (FastAPI)**: REST-API auf Port 8000
-- **Frontend (Vue.js)**: Entwicklungsserver auf Port 5173
-- **PostgreSQL**: Datenbank auf internem Port 5432 (Host: 5433)
+- **Frontend (Vue.js)**: Modernes UI mit Splash-Screen, animiertem Hintergrund und Kategorie-Management auf Port 5173
+- **PostgreSQL**: Datenbank auf internem Port 5432 (Host: 54320)
+
+## Features
+
+### Frontend
+- 🎨 **Animierter Splash-Screen** beim Laden der Anwendung
+- 🖼️ **Dekorativer Rahmen** mit Glow-Effekt
+- 📁 **Kategorie-Dropdown** mit Option "Neue Kategorie hinzufügen"
+- 💾 **Persistente Kategorien** (localStorage)
+- ✨ **Moderne Animationen** und Hover-Effekte
+- 📱 **Responsive Design** für alle Bildschirmgrößen
+
+### Backend
+- ⚡ **FastAPI** für schnelle REST-API
+- 🔒 **SQLModel** für typsichere Datenbankoperationen
+- 🐘 **PostgreSQL** für zuverlässige Datenspeicherung
+- 📝 **Automatische API-Dokumentation** (Swagger UI)
 
 ## Datenmodell
 
@@ -37,10 +53,10 @@ Die Anwendung arbeitet mit der Entität `InventoryItem`:
 |---------------|-----------|----------------------------------|
 | `id`          | Integer   | Primärschlüssel (Auto-Increment)|
 | `name`        | String    | Name des Artikels               |
-| `description` | String    | Optionale Beschreibung          |
-| `quantity`    | Integer   | Verfügbare Menge                |
-| `location`    | String    | Lagerort (z.B. Regalfach)       |
-| `created_at`  | Timestamp | Erstellungszeitpunkt            |
+| `category`    | String    | Kategorie (z.B. Hardware)       |
+| `status`      | String    | Status (verfügbar/in Verwendung/Wartung) |
+| `location`    | String    | Lagerort (z.B. Regal A3)        |
+| `assigned_to` | String    | Zugewiesene Person              |
 
 ## REST-API Endpunkte
 
@@ -248,6 +264,12 @@ docker compose down
 docker compose down -v
 ```
 
+### Container wieder starten
+
+```powershell
+docker compose up -d
+```
+
 ## Entwicklung
 
 ### Projekt-Struktur
@@ -286,9 +308,9 @@ FastAPI generiert automatisch eine interaktive API-Dokumentation:
 
 ### Datenbank-Zugriff
 
-PostgreSQL ist auf dem Host unter Port 5433 erreichbar:
+PostgreSQL ist auf dem Host unter Port 54320 erreichbar:
 
 ```powershell
 # Mit psql verbinden
-psql -h localhost -p 5433 -U postgres -d postgres
+psql -h localhost -p 54320 -U postgres -d postgres
 ```
