@@ -1,0 +1,6 @@
+{
+  "markdown.preview.scrollPreviewWithEditor": true,
+  "markdown.preview.doubleClickToSwitchToEditor": true,
+  "markdown.preview.scrollEditorWithPreview": true,
+  "liveServer.settings.port": 5523
+}

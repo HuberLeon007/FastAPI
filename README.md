@@ -7,8 +7,8 @@ Moderne Full-Stack-Webanwendung zur Verwaltung von Inventargegenständen mit Fas
 Dieses Projekt ist eine containerisierte Inventarverwaltungsanwendung mit folgenden Komponenten:
 
 - **Backend**: FastAPI (Python) REST-API
-- **Frontend**: Vue.js 3 mit Vite
-- **Datenbank**: PostgreSQL 15
+- **Frontend**: Vue.js mit Vite
+- **Datenbank**: PostgreSQL
 - **Orchestrierung**: Docker Compose
 
 Alle Dienste laufen in separaten Docker-Containern und kommunizieren über ein gemeinsames Netzwerk.
@@ -272,32 +272,203 @@ docker compose up -d
 
 ## Entwicklung
 
-### Projekt-Struktur
+### Container-Struktur und Kommunikation
+
+Die Anwendung besteht aus drei separaten Docker-Containern, die über ein gemeinsames Docker-Netzwerk miteinander kommunizieren:
+
+#### Container-Übersicht
+
+1. **Frontend-Container (`frontend`)**
+   - Basis: Node.js
+   - Port: 5173 (Host) → 5173 (Container)
+   - Funktion: Vite Development Server für Vue.js
+   - Zugriff auf Backend über: `http://localhost:8000`
+
+2. **Backend-Container (`backend`)**
+   - Basis: Python 3.11
+   - Port: 8000 (Host) → 8000 (Container)
+   - Funktion: FastAPI REST-API Server
+   - Zugriff auf Datenbank über: `postgresql://postgres:postgres@db:5432/postgres`
+
+3. **Datenbank-Container (`db`)**
+   - Basis: PostgreSQL 15
+   - Port: 54320 (Host) → 5432 (Container)
+   - Funktion: Persistente Datenspeicherung
+   - Volume: `pgdata` für dauerhafte Datenspeicherung
+
+#### Netzwerk-Kommunikation
 
 ```
-FastAPI/
-├── backend/
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py          # FastAPI App & Endpunkte
-│   │   ├── models.py        # SQLModel Datenmodelle
-│   │   ├── crud.py          # Datenbankoperationen
-│   │   ├── database.py      # DB-Verbindung
-│   │   └── static/
-│   │       └── index.html   # Statisches HTML
-│   ├── Dockerfile
-│   └── requirements.txt
-├── frontend/
-│   ├── src/
-│   │   ├── App.vue          # Vue Hauptkomponente
-│   │   └── main.js
-│   ├── Dockerfile
-│   ├── package.json
-│   └── vite.config.js
-├── database/
-│   └── init.sql             # DB-Initialisierung
-└── docker-compose.yml
+┌─────────────────────────────────────────────────────────────┐
+│                    Docker Network (default)                  │
+│                                                               │
+│  ┌──────────────┐         ┌──────────────┐                  │
+│  │  Frontend    │ ──HTTP─>│   Backend    │                  │
+│  │  Container   │         │   Container  │                  │
+│  │              │         │              │                  │
+│  │ Vue.js:5173  │         │ FastAPI:8000 │                  │
+│  └──────────────┘         └──────┬───────┘                  │
+│                                   │                           │
+│                                   │ PostgreSQL Protocol       │
+│                                   ▼                           │
+│                          ┌──────────────┐                    │
+│                          │  Database    │                    │
+│                          │  Container   │                    │
+│                          │              │                    │
+│                          │ Postgres:5432│                    │
+│                          └──────┬───────┘                    │
+│                                   │                           │
+│                                   ▼                           │
+│                          ┌──────────────┐                    │
+│                          │ Docker Volume│                    │
+│                          │   'pgdata'   │                    │
+│                          └──────────────┘                    │
+└─────────────────────────────────────────────────────────────┘
+
+Host Machine Zugriff:
+- Frontend:  http://localhost:5173
+- Backend:   http://localhost:8000
+- Database:  localhost:54320
 ```
+
+#### Service-Abhängigkeiten
+
+Die Container starten in folgender Reihenfolge:
+
+1. **db** (Datenbank) - startet zuerst
+2. **backend** - wartet auf Health-Check der Datenbank
+3. **frontend** - wartet auf Backend-Start
+
+Docker Compose verwendet `depends_on` mit Health-Checks:
+
+```yaml
+backend:
+  depends_on:
+    db:
+      condition: service_healthy
+
+frontend:
+  depends_on:
+    - backend
+```
+
+#### Interne vs. Externe Kommunikation
+
+**Interne Kommunikation (Container untereinander):**
+- Backend → Database: `db:5432` (Container-Name als Hostname)
+- Frontend → Backend: `backend:8000` (im Container-Netzwerk)
+
+**Externe Kommunikation (vom Host/Browser):**
+- Browser → Frontend: `localhost:5173`
+- Browser → Backend: `localhost:8000`
+- Datenbank-Tools → Database: `localhost:54320`
+
+### Datenspeicherung
+
+#### Persistente Daten
+
+Die Anwendungsdaten werden in einem Docker Volume gespeichert, das auch nach dem Stoppen der Container erhalten bleibt:
+
+**Volume-Name:** `pgdata`
+
+**Speicherort auf dem Host:**
+- Windows: `\\wsl$\docker-desktop-data\data\docker\volumes\fastapi_pgdata\_data`
+- Linux: `/var/lib/docker/volumes/fastapi_pgdata/_data`
+
+#### Datenbank-Schema
+
+Die Datenbank wird beim ersten Start automatisch initialisiert:
+
+1. **Initialisierung:** Das SQL-Script `database/init.sql` wird automatisch ausgeführt
+2. **Tabellen:** Die Tabelle `inventoryitem` wird erstellt
+3. **Daten:** Beispieldaten (falls vorhanden) werden eingefügt
+
+#### Daten-Lifecycle
+
+**1. Erste Ausführung (docker compose up):**
+- Container 'db' startet
+- Volume 'pgdata' wird erstellt
+- init.sql wird ausgeführt
+- Datenbank-Schema wird angelegt
+
+**2. Anwendung läuft:**
+- Daten werden in PostgreSQL gespeichert
+- Volume 'pgdata' speichert alle Änderungen
+- Daten bleiben auch bei Container-Neustart erhalten
+
+**3. Container stoppen (docker compose down):**
+- Container werden gestoppt und entfernt
+- Volume 'pgdata' bleibt erhalten ✓
+
+**4. Container neu starten (docker compose up):**
+- Container werden neu erstellt
+- Bestehendes Volume wird wieder eingebunden
+- Alle Daten sind noch vorhanden ✓
+
+**5. Kompletter Reset (docker compose down -v):**
+- Container werden gestoppt und entfernt
+- Volume 'pgdata' wird gelöscht ✗
+- Alle Daten gehen verloren!
+
+#### Kategorie-Daten (localStorage)
+
+Benutzerdefinierte Kategorien werden im Browser gespeichert:
+
+**Speicherort:** Browser localStorage
+**Key:** `categories`
+**Format:** JSON-Array (z.B. `["Hardware", "Software", "Möbel", "Zubehör"]`)
+
+**Wichtig:** Diese Daten sind:
+- ✓ Browser-spezifisch (pro Benutzer/Browser)
+- ✓ Persistent (bleiben nach Browser-Neustart erhalten)
+- ✗ Nicht Container-abhängig
+- ✗ Nicht in der Datenbank gespeichert
+
+#### Backup und Wiederherstellung
+
+**Datenbank sichern:**
+```powershell
+docker exec fastapi-db-1 pg_dump -U postgres postgres > backup.sql
+```
+
+**Datenbank wiederherstellen:**
+```powershell
+Get-Content backup.sql | docker exec -i fastapi-db-1 psql -U postgres -d postgres
+```
+
+**Volume sichern:**
+```powershell
+docker run --rm -v fastapi_pgdata:/data -v ${PWD}:/backup alpine tar czf /backup/pgdata-backup.tar.gz -C /data .
+```
+
+**Volume wiederherstellen:**
+```powershell
+docker run --rm -v fastapi_pgdata:/data -v ${PWD}:/backup alpine tar xzf /backup/pgdata-backup.tar.gz -C /data
+```
+
+### Projekt-Struktur
+
+- **backend/** - FastAPI Backend
+  - **app/** - Anwendungscode
+    - `__init__.py`
+    - `main.py` - FastAPI App & Endpunkte
+    - `models.py` - SQLModel Datenmodelle
+    - `crud.py` - Datenbankoperationen
+    - `database.py` - DB-Verbindung
+    - **static/** - Statische Dateien
+      - `index.html`
+  - `Dockerfile`
+  - `requirements.txt`
+- **frontend/** - Vue.js Frontend
+  - **src/**
+    - `App.vue` - Vue Hauptkomponente
+    - `main.js`
+  - `Dockerfile`
+  - `package.json`
+  - `vite.config.js`
+- **database/**
+  - `init.sql` - DB-Initialisierung
+- `docker-compose.yml`
 
 ### API-Dokumentation
 
