@@ -300,29 +300,29 @@ Die Anwendung besteht aus drei separaten Docker-Containern, die über ein gemein
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Docker Network (default)                  │
-│                                                               │
+│                    Docker Network (default)                 │
+│                                                             │
 │  ┌──────────────┐         ┌──────────────┐                  │
 │  │  Frontend    │ ──HTTP─>│   Backend    │                  │
 │  │  Container   │         │   Container  │                  │
 │  │              │         │              │                  │
 │  │ Vue.js:5173  │         │ FastAPI:8000 │                  │
 │  └──────────────┘         └──────┬───────┘                  │
-│                                   │                           │
-│                                   │ PostgreSQL Protocol       │
-│                                   ▼                           │
-│                          ┌──────────────┐                    │
-│                          │  Database    │                    │
-│                          │  Container   │                    │
-│                          │              │                    │
-│                          │ Postgres:5432│                    │
-│                          └──────┬───────┘                    │
-│                                   │                           │
-│                                   ▼                           │
-│                          ┌──────────────┐                    │
-│                          │ Docker Volume│                    │
-│                          │   'pgdata'   │                    │
-│                          └──────────────┘                    │
+│                                  │                          │
+│                                  │ PostgreSQL Protocol      │
+│                                  ▼                          │
+│                          ┌──────────────┐                   │
+│                          │  Database    │                   │
+│                          │  Container   │                   │
+│                          │              │                   │
+│                          │ Postgres:5432│                   │
+│                          └──────┬───────┘                   │
+│                                 │                           │
+│                                 ▼                           │
+│                          ┌──────────────┐                   │
+│                          │ Docker Volume│                   │
+│                          │   'pgdata'   │                   │
+│                          └──────────────┘                   │
 └─────────────────────────────────────────────────────────────┘
 
 Host Machine Zugriff:
